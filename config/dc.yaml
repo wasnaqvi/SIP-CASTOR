@@ -1,0 +1,107 @@
+observation:
+  with_dask: true
+  parameters:
+    - key: detector.environment.temperature
+      values: numpy.arange(143.0, 263.0, 5.0)      
+    - key: pipeline.charge_generation.dark_current.arguments.figure_of_merit
+      values: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+    - key: pipeline.charge_generation.dark_current.arguments.spatial_noise_factor
+      values: [0.0, 0.1, 0.2, 0.3, 0.4]
+    
+  readout:
+    times: [2.5]
+    non_destructive:  false
+
+  outputs:
+    output_folder: "output"
+    save_data_to_file:      
+      
+cmos_detector:
+
+  geometry:
+
+    row: 100               # pixel
+    col: 100               # pixel
+    total_thickness: 40.    # um
+    pixel_vert_size: 13.5    # um
+    pixel_horz_size: 13.5    # um
+    
+  environment:
+    temperature: 223       # K
+
+  characteristics:
+    quantum_efficiency: 1                 # -
+    charge_to_volt_conversion: 3.e-6       # V/e
+    pre_amplification: 100                # V/V
+    adc_voltage_range: [0., 10.]
+    adc_bit_resolution: 16
+    full_well_capacity: 100000               # e
+
+pipeline:
+
+  # -> photon
+  photon_collection:
+    - name: illumination
+      func: pyxel.models.photon_collection.illumination
+      enabled: true
+      arguments:
+        level: 0
+
+    - name: shot_noise
+      func: pyxel.models.photon_collection.shot_noise
+      enabled: true
+      
+  # photon -> charge
+  charge_generation:
+    - name: photoelectrons
+      func: pyxel.models.charge_generation.simple_conversion
+      enabled: true
+    - name: dark_current
+      func: pyxel.models.charge_generation.dark_current
+      enabled: true
+      arguments:
+        figure_of_merit: 1.  # nA/cm^2
+        spatial_noise_factor: 0.1 #typically between 0.1 and 0.4
+        temporal_noise: true
+
+  # charge -> pixel
+  charge_collection:
+    - name: simple_collection
+      func: pyxel.models.charge_collection.simple_collection
+      enabled: true
+    - name: simple_full_well
+      func: pyxel.models.charge_collection.simple_full_well
+      enabled: true
+    - name: fixed_pattern_noise
+      func: pyxel.models.charge_collection.fixed_pattern_noise
+      enabled: true
+      arguments:
+        fixed_pattern_noise_factor: 0.01 #typically between 0.01 and 0.02
+        #filename: "noise.npy"
+
+  # pixel -> pixel
+  charge_transfer:
+
+  # pixel -> signal
+  charge_measurement:
+    - name: simple_measurement
+      func: pyxel.models.charge_measurement.simple_measurement
+      enabled: true
+
+  # signal -> image
+  readout_electronics:
+    - name: simple_amplifier
+      func: pyxel.models.readout_electronics.simple_amplifier
+      enabled: true
+    - name: simple_adc
+      func: pyxel.models.readout_electronics.simple_adc
+      enabled: true
+    
+  data_processing:
+    - name: statistics
+      func:  pyxel.models.data_processing.statistics
+      enabled: true
+
+
+
+
