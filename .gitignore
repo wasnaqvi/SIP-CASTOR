@@ -1,2 +1,4 @@
 .npy
-/data
+/data/
+*.npy
+*.nc
