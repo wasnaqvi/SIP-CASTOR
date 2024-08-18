@@ -13,7 +13,7 @@ observation:
     non_destructive:  false
 
   outputs:
-    output_folder: "output"
+    output_folder: "../data"
     save_data_to_file:      
       
 cmos_detector:
