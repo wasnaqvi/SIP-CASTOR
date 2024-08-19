@@ -17,6 +17,7 @@ The pipeline simulates various aspects of the CASTOR telescope’s in-orbit perf
 - **Throughput Calculations**: Simulates the throughput of the telescope and detectors, accounting for the instrument's optics and detector quantum efficiency.
 - **Point Spread Function (PSF)**: Models the PSF of the telescope, including aberrations and diffraction effects.
 - **Orbital Effects**: Simulates the impact of orbital conditions on the detector’s performance.
+  **STILL IN DEVELOPMENT**
 
 ## Requirements
 
@@ -34,13 +35,13 @@ To run the detector simulation pipeline, you will need the following:
 1. Clone this repository:
 
     ```bash
-    git clone https://github.com/yourusername/simulation-in-orbit-performance-for-castor.git
+    git clone https://github.com/wasnaqvi/SIP-CASTOR/
     ```
 
 2. Navigate to the project directory:
 
     ```bash
-    cd simulation-in-orbit-performance-for-castor
+    cd SIP-CASTOR/data
     ```
 
 3. Install the required dependencies:
@@ -48,6 +49,7 @@ To run the detector simulation pipeline, you will need the following:
     ```bash
     pip install -r requirements.txt
     ```
+   **I am working on the exact requirements right now.**
 
 ## Usage
 
