@@ -15,7 +15,7 @@ exposure:
     non_destructive:  false
 
   outputs:
-    output_folder: "output"
+    output_folder: "../data"
     save_data_to_file:
       - detector.image.array:   ['fits', 'jpg']
       - detector.pixel.array: ['npy']
