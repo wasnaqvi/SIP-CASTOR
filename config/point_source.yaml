@@ -1,0 +1,129 @@
+#############################################################
+# Pyxel detector simulation framework                       #
+#                                                           #
+# Note that this file has many models written in that are not run#
+# Exposure mode is used and cosmic ray model is not enabled  #        
+# Created by Matej Arko                                     #
+#############################################################
+
+
+# yaml-language-server: $schema=https://esa.gitlab.io/pyxel/doc/latest/pyxel_schema.json
+exposure:
+
+  readout:
+    times: [1., 5., 7.]
+    non_destructive:  false
+
+  outputs:
+    output_folder: "output"
+    save_data_to_file:
+      - detector.image.array:   ['fits', 'jpg']
+      - detector.pixel.array: ['npy']
+    save_exposure_data:
+      - dataset: ['nc']
+      
+cmos_detector:
+
+  geometry:
+
+    row: 255                # pixel
+    col: 255                # pixel
+    total_thickness: 80.    # um
+    pixel_vert_size: 10.    # um
+    pixel_horz_size: 10.    # um
+    pixel_scale: 0.01       # arcsec/pixel
+
+  environment:
+    temperature: 300        # K
+
+  characteristics:
+    quantum_efficiency: 1.                 # -
+    charge_to_volt_conversion: 1.0e-6      # V/e
+    pre_amplification: 100                # V/V
+    adc_voltage_range: [0., 10.]
+    adc_bit_resolution: 16
+    full_well_capacity: 100000               # e
+
+pipeline:
+  # -> photon
+  photon_collection:
+    - name: load_image
+      func: pyxel.models.photon_collection.load_image
+      enabled: true
+      arguments:
+        image_file: FITS/star_simulation.fits
+        convert_to_photons: true
+        bit_resolution: 16
+        align: "center"
+
+    - name: shot_noise
+      func: pyxel.models.photon_collection.shot_noise
+      enabled: false
+
+  # photon -> charge
+  charge_generation:
+    - name: photoelectrons
+      func: pyxel.models.charge_generation.simple_conversion
+      enabled: true
+      
+    - name: cosmix
+      func: pyxel.models.charge_generation.cosmix
+      enabled: false
+      arguments:
+        simulation_mode: cosmic_ray
+        running_mode: stepsize
+        particle_type: proton
+        initial_energy: 100.          # MeV
+        particles_per_second: 100
+        incident_angles:
+        starting_position:
+        spectrum_file: 'shielding.txt'
+        seed: 4321
+        progressbar: true
+
+  # charge -> pixel
+  charge_collection:
+    - name: simple_collection
+      func: pyxel.models.charge_collection.simple_collection
+      enabled: true
+    - name: simple_ipc
+      func: pyxel.models.charge_collection.simple_ipc
+      enabled: true
+      arguments:
+          coupling: 0.1
+          diagonal_coupling: 0.05
+          anisotropic_coupling: 0.03  
+
+    - name: full_well
+      func: pyxel.models.charge_collection.simple_full_well
+      enabled: false
+
+  # pixel -> pixel
+  charge_transfer:
+    - name: cdm
+      func: pyxel.models.charge_transfer.cdm
+      enabled: false
+      arguments:
+        direction: parallel
+        trap_release_times: [3.e-2]
+        trap_densities: [20.]
+        sigma: [1.e-10]
+        beta: 0.3
+        max_electron_volume: 1.62e-10   # cm^2
+        transfer_period: 9.4722e-04     # s
+        charge_injection: false
+
+  # pixel -> signal
+  charge_measurement:
+    - name: simple_measurement
+      func: pyxel.models.charge_measurement.simple_measurement
+      enabled: true
+
+  # signal -> image
+  readout_electronics:
+    - name: simple_amplifier
+      func: pyxel.models.readout_electronics.simple_amplifier
+      enabled: true
+    - name: simple_adc
+      func: pyxel.models.readout_electronics.simple_adc
+      enabled: true
