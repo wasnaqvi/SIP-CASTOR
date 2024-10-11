@@ -51,7 +51,7 @@ pipeline:
       func: pyxel.models.photon_collection.load_image
       enabled: true
       arguments:
-        image_file: FITS/star_simulation.fits
+        image_file: /Users/wasi/Desktop/FITS/star_simulation.fits
         convert_to_photons: true
         bit_resolution: 16
         align: "center"
