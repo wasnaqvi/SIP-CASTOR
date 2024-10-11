@@ -61,6 +61,8 @@ To run the notebooks:
    
 3. The output will be a simulated image with the in-orbit conditions modeled, including noise and PSF effects.
 
+   The Simulated Survey Files are available in hdf format on the Canadian Astronomical Data Center. Email me @ wasi.naqvi@nrc-cnrc.gc.ca or wasi14@student.ubc.ca for these files if you need to run Phase_0 sim.ipynb
+
 ## Configuration
 
 The configuration file `xx.yaml` contains the parameters for the simulation. The .yaml files follow Pyxel's JSON schema.
