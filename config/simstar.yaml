@@ -1,0 +1,139 @@
+# ########################################################### #
+# Pyxel detector simulation framework                         #
+#                                                             #
+# Example yaml configuration file                             #
+# Scene generation and simple conversion                      #
+# Created by C. Seibert                                       #
+# ########################################################### #
+
+
+# yaml-language-server: $schema=https://esa.gitlab.io/pyxel/doc/latest/pyxel_schema.json
+exposure:
+
+  readout:
+    times: [6000] # in s
+    non_destructive:  false
+    
+  outputs:
+    output_folder: "output"
+    save_data_to_file:
+      - detector.image.array: ['fits']
+
+ccd_detector:
+
+  geometry:
+
+    row: 500  
+    col: 500    
+    total_thickness: 40.    # um
+    pixel_vert_size: 12.    # um
+    pixel_horz_size: 12.    # um
+    pixel_scale: 1.65       # arcsec/pixel
+
+  environment:
+    temperature: 150  #K 
+
+  characteristics:
+    quantum_efficiency: 0.9          
+    charge_to_volt_conversion: 1.0e-6 
+    pre_amplification: 4.          
+    adc_voltage_range: [0.0, 10.0]    
+    adc_bit_resolution: 16
+    full_well_capacity: 175000 #e-   
+
+pipeline:
+  # scene -> scene:
+  scene_generation:
+    - name: scene_generator
+      func: pyxel.models.scene_generation.load_star_map
+      enabled: true
+      arguments:
+        right_ascension: 56.75 # deg
+        declination: 24.1167 # deg
+        fov_radius: 0.5 # deg
+      
+      
+  # scene -> photon
+  photon_collection:
+    - name: aperture
+      func: pyxel.models.photon_collection.simple_collection
+      enabled: true
+      arguments:
+         aperture: 126.70e-3 # m
+         filter_band: [500, 900] # nm
+         resolution: 100  # nm
+         
+    - name: load_psf
+      func: pyxel.models.photon_collection.load_psf
+      enabled: false
+      arguments:
+        filename: "data/psf_VIS.fits"
+        normalize_kernel: true  # optional
+        
+    - name: optical_psf
+      func: pyxel.models.photon_collection.optical_psf
+      enabled: false
+      arguments:
+        fov_arcsec: 1800              # FOV in arcseconds
+        wavelength: 600  # wavelength in nm
+        optical_system:
+          - item: CircularAperture
+            radius: 126.70e-3             # radius in meters
+
+
+  # photon -> charge
+  charge_generation:
+    - name: photoelectrons
+      func: pyxel.models.charge_generation.simple_conversion
+      enabled: true
+        
+    - name: simple_dark_current
+      func: pyxel.models.charge_generation.simple_dark_current
+      enabled: false
+      arguments:
+        dark_rate: 20.0
+
+
+  # charge -> pixel
+  charge_collection:
+    - name: simple_collection
+      func: pyxel.models.charge_collection.simple_collection
+      enabled: true
+      
+    - name: full_well
+      func: pyxel.models.charge_collection.simple_full_well
+      enabled: true
+      
+    - name: fixed_pattern_noise
+      func: pyxel.models.charge_collection.fixed_pattern_noise
+      enabled: true
+      arguments:
+        fixed_pattern_noise_factor: 0.014
+        seed: 12345
+        #filename: "data/noise.npy"
+
+
+  # pixel -> pixel
+  charge_transfer:
+
+  # pixel -> signal
+  charge_measurement:
+
+    - name: simple_measurement
+      func: pyxel.models.charge_measurement.simple_measurement
+      enabled: true
+        
+    - name: output_noise
+      func: pyxel.models.charge_measurement.output_node_noise
+      enabled: true
+      arguments:
+        std_deviation: 5.4585266113281245e-05
+    
+  # signal -> image
+  readout_electronics:
+    - name: simple_amplifier
+      func: pyxel.models.readout_electronics.simple_amplifier
+      enabled: true
+    - name: simple_adc
+      func: pyxel.models.readout_electronics.simple_adc
+      enabled: true
