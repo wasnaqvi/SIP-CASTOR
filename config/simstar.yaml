@@ -91,7 +91,7 @@ pipeline:
       func: pyxel.models.charge_generation.simple_dark_current
       enabled: false
       arguments:
-        dark_rate: 20.0
+        dark_rate: 20.0 # nA/cm^2/s^2
 
 
   # charge -> pixel
