@@ -51,7 +51,7 @@ pipeline:
       func: pyxel.models.photon_collection.load_image
       enabled: true
       arguments:
-        image_file: /Users/wasi/projected_g_band.fits
+        image_file: ../Notebooks/stars_cutout.fits
         convert_to_photons: true
         bit_resolution: 16
         align: "top_right"
@@ -77,7 +77,7 @@ pipeline:
       
     - name: cosmix
       func: pyxel.models.charge_generation.cosmix
-      enabled: true
+      enabled: false
       arguments:
         simulation_mode: cosmic_ray
         running_mode: stepsize

@@ -5,6 +5,7 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy.convolution import Gaussian2DKernel, convolve
 from photutils.detection import DAOStarFinder
+from astropy.nddata import Cutout2D
 import matplotlib.pyplot as plt
 
 # === Step 1: Read the HDF5 file and extract the data ===
@@ -31,7 +32,7 @@ mag = castor_g_mag
 # === Step 2: Convert magnitudes to fluxes ===
 # You need to adopt a zeropoint for your synthetic photometry. Here we assume a simple conversion.
 # (Flux here is an arbitrary “counts” scale; adjust the zeropoint as appropriate.)
-zp = 25.0  # example zeropoint
+zp = 2 
 flux = 10**(-0.4 * (mag - zp))
 
 # === Step 3: Define a WCS and create an empty image grid ===
@@ -72,22 +73,36 @@ for xi, yi, f_val in zip(x_pix, y_pix, flux):
     if 0 <= xi < naxis1 and 0 <= yi < naxis2:
         image[yi, xi] += f_val
 
+print("Image stats before convolution:")
+print("  Sum:", np.sum(image))
+print("  Max:", np.max(image))
+print("  Min:", np.min(image))
+print("  Nonzero count:", np.count_nonzero(image))
+
+
 # === (Optional) Convolve with a PSF kernel ===
 # Convolve with a Gaussian kernel to simulate a realistic point-spread function.
-psf_sigma = 0.15  # in pixels; adjust as needed
+psf_sigma = 0.5  # in pixels; adjust as needed
 kernel = Gaussian2DKernel(x_stddev=psf_sigma)
 image_conv = convolve(image, kernel)
 
 # For the star-finding step, we will use the convolved image.
 final_image = image_conv
 
+print("Final image stats after convolution:")
+print("  Sum:", np.sum(final_image))
+print("  Max:", np.max(final_image))
+print("  Min:", np.min(final_image))
+print("  Nonzero count:", np.count_nonzero(final_image))
+
 # === Step 5: Save the projected image to a FITS file ===
 
 # Create a FITS PrimaryHDU with the image data and WCS header.
 hdu = fits.PrimaryHDU(data=final_image, header=w.to_header())
 fits_filename = 'projected_g_band.fits'
-hdu.writeto(fits_filename, overwrite=True)
-print("Saved projected image to:", fits_filename)
+# hdu.writeto(fits_filename, overwrite=True)
+# print("Saved projected image to:", fits_filename)
+
 
 # === Step 6: Run DAOStarFinder to detect stars ===
 
@@ -97,7 +112,7 @@ mean_val, median_val, std_val = sigma_clipped_stats(final_image, sigma=3.0)
 # Initialize DAOStarFinder.
 # fwhm: approximate full–width at half–maximum of stars in pixels.
 # threshold: detection threshold in sigma above the background.
-daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std_val)
+daofind = DAOStarFinder(fwhm=2.0, threshold=2*std_val)
 
 # Run the star finder on the background–subtracted image.
 sources = daofind(final_image - median_val)
@@ -118,8 +133,83 @@ if sources is not None:
     plt.title('Detected Stars')
     plt.legend()
     plt.show()
-else:
-    print("No stars detected.")
+     # Get the pixel coordinates from DAOStarFinder
+    x_coords = sources['xcentroid']
+    y_coords = sources['ycentroid']
+    
+    # Compute the bounding box (min and max pixel positions)
+    x_min, x_max = np.min(x_coords), np.max(x_coords)
+    y_min, y_max = np.min(y_coords), np.max(y_coords)
+    
+    # Add a margin (in pixels) to the bounding box for a nicer cutout.
+    margin = 10  # adjust as needed
+    # Define the center and size of the cutout
+    center_x = (x_min + x_max) / 2.0
+    center_y = (y_min + y_max) / 2.0
+    size_x = (x_max - x_min) + 2 * margin
+    size_y = (y_max - y_min) + 2 * margin
+    
+    position = (center_x, center_y)
+    size = (size_x, size_y)
+    
+    # Create a cutout of the full image so that we get an appropriately sized WCS header.
+    # (We are not using the cutout's pixel values directly, but its WCS information.)
+    cutout = Cutout2D(final_image, position=position, size=size, wcs=w)
+    
+    # --- Create a new image for only the detected stars ---
+    # Instead of using the full final_image, we make a new array with the size of the cutout.
+    stars_image = np.zeros_like(cutout.data)
+    
+    # The cutout object gives us the bounding box of the cutout in the original image.
+    # Get the bounding box in the original image coordinates
+    (ymin, ymax), (xmin, xmax) = cutout.bbox_original
+
+    # Create slice objects for the original image region corresponding to the cutout:
+    y_slice = slice(ymin, ymax)
+    x_slice = slice(xmin, xmax)
+    # Deposit each star’s flux into the new cutout image at the relative position.
+    for star in sources:
+        # Use the DAOStarFinder centroids
+        x_star = star['xcentroid']
+        y_star = star['ycentroid']
+        
+        # Check if the star falls within the cutout region in the original image.
+        if (x_star >= x_slice.start and x_star < x_slice.stop and
+            y_star >= y_slice.start and y_star < y_slice.stop):
+            # Convert to the cutout image coordinate system.
+            new_x = int(np.round(x_star - x_slice.start))
+            new_y = int(np.round(y_star - y_slice.start))
+            stars_image[new_y, new_x] += star['flux']
+    
+    # --- Save the stars–only cutout image to a FITS file ---
+    hdu = fits.PrimaryHDU(data=stars_image, header=cutout.wcs.to_header())
+    fits_filename = 'stars_cutout.fits'
+    hdu.writeto(fits_filename, overwrite=True)
+    print("Saved stars cutout image to:", fits_filename)
+    
+    # --- Display the cutout image ---
+    plt.figure(figsize=(8, 8))
+    norm = simple_norm(stars_image, 'sqrt', percent=99.5)
+    plt.imshow(stars_image, origin='lower', cmap='gray', norm=norm)
+    plt.colorbar(label='Flux')
+    plt.title('Cutout Image of Detected Stars')
+    plt.xlabel('X Pixel')
+    plt.ylabel('Y Pixel')
+    plt.show()
+    
+    
+    hdu_stars = fits.PrimaryHDU(data=stars_image, header=w.to_header())
+    fits_filename_stars = 'stars_image.fits'
+    hdu_stars.writeto(fits_filename_stars, overwrite=True)
+    print("Saved stars image to:", fits_filename_stars)
+    plt.figure(figsize=(8, 8))
+    norm = simple_norm(stars_image, 'sqrt', percent=99.5)
+    plt.imshow(stars_image, origin='lower', cmap='viridis', norm=norm)
+    plt.colorbar(label='Flux')
+    plt.title('Image of Detected Stars')
+    plt.xlabel('X Pixel')
+    plt.ylabel('Y Pixel')
+    plt.show()
 
 import pyxel
 config = pyxel.load("../config/g_band.yaml")
@@ -135,3 +225,11 @@ result = pyxel.run_mode(
 )
 pyxel.display_detector(detector)
 
+vals=result['photon'].to_numpy()
+
+# investigate vals
+print(vals)
+print(vals.shape)
+print(vals[0])
+print(vals[1])
+print(vals[2])
