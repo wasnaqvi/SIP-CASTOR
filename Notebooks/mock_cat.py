@@ -127,9 +127,10 @@ if sources is not None:
     plt.figure(figsize=(8, 8))
     plt.imshow(final_image, origin='lower', cmap='gray', norm=norm)
     plt.scatter(sources['xcentroid'], sources['ycentroid'],
-                s=30, edgecolor='red', facecolor='none', label='DAOStarFinder')
+                s=30, edgecolor='red', facecolor='none', label='Brightest Stars >> 4 AB mag')
     plt.xlabel('X Pixel')
     plt.ylabel('Y Pixel')
+    plt.xlim(0, 6000)
     plt.title('Detected Stars')
     plt.legend()
     plt.show()
@@ -141,15 +142,15 @@ if sources is not None:
     plt.imshow(simple_cutout.data, origin='lower', cmap='gray', norm=norm)
     # view shape of simple_cutout.data
     print(simple_cutout.data.shape)
-    # Mark the detected stars on the cutout.
+    # Mark the detected stars on the cutout
     plt.scatter(sources['xcentroid'] - position[0], sources['ycentroid'] - position[1],
-                s=30, edgecolor='red', facecolor='none', label='DAOStarFinder')
+                s=30, edgecolor='red', facecolor='none', label='<4 AB mag')
     # set xlim and ylim
     plt.xlim(0,2000)
     plt.ylim(0,2000)
     plt.xlabel('X Pixel')
     plt.ylabel('Y Pixel')
-    plt.title('Detected Stars in Cutout')
+    plt.title('Faint Milky Way Stars in the Galactic Plane(g band)')
     plt.show()
     # save the image to a fits file
     hdu=fits.PrimaryHDU(data=simple_cutout.data, header=simple_cutout.wcs.to_header())
