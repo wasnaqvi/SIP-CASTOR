@@ -139,6 +139,8 @@ if sources is not None:
     size = (2000, 2000)
     simple_cutout = Cutout2D(final_image, position=position, size=size, wcs=w)
     plt.imshow(simple_cutout.data, origin='lower', cmap='gray', norm=norm)
+    # view shape of simple_cutout.data
+    print(simple_cutout.data.shape)
     # Mark the detected stars on the cutout.
     plt.scatter(sources['xcentroid'] - position[0], sources['ycentroid'] - position[1],
                 s=30, edgecolor='red', facecolor='none', label='DAOStarFinder')
@@ -148,11 +150,12 @@ if sources is not None:
     plt.xlabel('X Pixel')
     plt.ylabel('Y Pixel')
     plt.title('Detected Stars in Cutout')
+    plt.show()
     # save the image to a fits file
-    hdul = fits.PrimaryHDU(data=simple_cutout.data)
-    fits_filename = 'simple_cutout.fits'
-    hdul.writeto(fits_filename, overwrite=True)
-    print("Saved simple cutout image to:", fits_filename)
+    hdu=fits.PrimaryHDU(data=simple_cutout.data, header=simple_cutout.wcs.to_header())
+    hdul=fits.HDUList([hdu])
+    hdul.writeto('simple_cut.fits', overwrite=True)
+    print("Saved simple cutout image to:", 'simple_cut.fits')
      # Get the pixel coordinates from DAOStarFinder
     x_coords = sources['xcentroid']
     y_coords = sources['ycentroid']
@@ -207,51 +210,51 @@ if sources is not None:
     print("Saved stars cutout image to:", fits_filename)
     
     # --- Display the cutout image ---
-    plt.figure(figsize=(8, 8))
-    norm = simple_norm(stars_image, 'sqrt', percent=99.5)
-    plt.imshow(stars_image, origin='lower', cmap='gray', norm=norm)
-    plt.colorbar(label='Flux')
-    plt.title('Cutout Image of Detected Stars')
-    plt.xlabel('X Pixel')
-    plt.ylabel('Y Pixel')
-    plt.show()
+    # plt.figure(figsize=(8, 8))
+    # norm = simple_norm(stars_image, 'sqrt', percent=99.5)
+    # plt.imshow(stars_image, origin='lower', cmap='gray', norm=norm)
+    # plt.colorbar(label='Flux')
+    # plt.title('Cutout Image of Detected Stars')
+    # plt.xlabel('X Pixel')
+    # plt.ylabel('Y Pixel')
+    # plt.show()
     
     
-    hdu_stars = fits.PrimaryHDU(data=stars_image, header=w.to_header())
-    fits_filename_stars = 'stars_image.fits'
-    hdu_stars.writeto(fits_filename_stars, overwrite=True)
-    print("Saved stars image to:", fits_filename_stars)
-    plt.figure(figsize=(8, 8))
-    norm = simple_norm(stars_image, 'sqrt', percent=99.5)
-    plt.imshow(stars_image, origin='lower', cmap='viridis', norm=norm)
-    plt.colorbar(label='Flux')
-    plt.title('Image of Detected Stars')
-    plt.xlabel('X Pixel')
-    plt.ylabel('Y Pixel')
-    plt.show()
+#     hdu_stars = fits.PrimaryHDU(data=stars_image, header=w.to_header())
+#     fits_filename_stars = 'stars_image.fits'
+#     hdu_stars.writeto(fits_filename_stars, overwrite=True)
+#     print("Saved stars image to:", fits_filename_stars)
+#     plt.figure(figsize=(8, 8))
+#     norm = simple_norm(stars_image, 'sqrt', percent=99.5)
+#     plt.imshow(stars_image, origin='lower', cmap='viridis', norm=norm)
+#     plt.colorbar(label='Flux')
+#     plt.title('Image of Detected Stars')
+#     plt.xlabel('X Pixel')
+#     plt.ylabel('Y Pixel')
+#     plt.show()
 
-# view and open simple_cutout.fits
+# # view and open simple_cutout.fits
 
 
-import pyxel
-config = pyxel.load("../config/g_band.yaml")
+# import pyxel
+# config = pyxel.load("../config/g_band.yaml")
 
-exposure = config.exposure
-detector = config.detector
-pipeline = config.pipeline
+# exposure = config.exposure
+# detector = config.detector
+# pipeline = config.pipeline
 
-result = pyxel.run_mode(
-    mode=exposure,
-    detector=detector,
-    pipeline=pipeline,
-)
-pyxel.display_detector(detector)
+# result = pyxel.run_mode(
+#     mode=exposure,
+#     detector=detector,
+#     pipeline=pipeline,
+# )
+# pyxel.display_detector(detector)
 
-vals=result['photon'].to_numpy()
+# vals=result['photon'].to_numpy()
 
-# investigate vals
-print(vals)
-print(vals.shape)
-print(vals[0])
-print(vals[1])
-print(vals[2])
+# # investigate vals
+# print(vals)
+# print(vals.shape)
+# print(vals[0])
+# print(vals[1])
+# print(vals[2])
