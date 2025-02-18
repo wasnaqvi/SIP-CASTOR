@@ -51,7 +51,7 @@ pipeline:
       func: pyxel.models.photon_collection.load_image
       enabled: true
       arguments:
-        image_file: ../Notebooks/stars_cutout.fits
+        image_file: ../Notebooks/simple_cutout.fits
         convert_to_photons: true
         bit_resolution: 16
         align: "top_right"

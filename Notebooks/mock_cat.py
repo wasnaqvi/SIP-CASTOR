@@ -133,6 +133,26 @@ if sources is not None:
     plt.title('Detected Stars')
     plt.legend()
     plt.show()
+    
+    # Get a simple cutout of a section of the image around the detected stars. X-0:2000, and Y-2000:4000
+    position = (1000, 3000)
+    size = (2000, 2000)
+    simple_cutout = Cutout2D(final_image, position=position, size=size, wcs=w)
+    plt.imshow(simple_cutout.data, origin='lower', cmap='gray', norm=norm)
+    # Mark the detected stars on the cutout.
+    plt.scatter(sources['xcentroid'] - position[0], sources['ycentroid'] - position[1],
+                s=30, edgecolor='red', facecolor='none', label='DAOStarFinder')
+    # set xlim and ylim
+    plt.xlim(0,2000)
+    plt.ylim(0,2000)
+    plt.xlabel('X Pixel')
+    plt.ylabel('Y Pixel')
+    plt.title('Detected Stars in Cutout')
+    # save the image to a fits file
+    hdul = fits.PrimaryHDU(data=simple_cutout.data)
+    fits_filename = 'simple_cutout.fits'
+    hdul.writeto(fits_filename, overwrite=True)
+    print("Saved simple cutout image to:", fits_filename)
      # Get the pixel coordinates from DAOStarFinder
     x_coords = sources['xcentroid']
     y_coords = sources['ycentroid']
@@ -152,8 +172,7 @@ if sources is not None:
     position = (center_x, center_y)
     size = (size_x, size_y)
     
-    # Create a cutout of the full image so that we get an appropriately sized WCS header.
-    # (We are not using the cutout's pixel values directly, but its WCS information.)
+ 
     cutout = Cutout2D(final_image, position=position, size=size, wcs=w)
     
     # --- Create a new image for only the detected stars ---
@@ -210,6 +229,9 @@ if sources is not None:
     plt.xlabel('X Pixel')
     plt.ylabel('Y Pixel')
     plt.show()
+
+# view and open simple_cutout.fits
+
 
 import pyxel
 config = pyxel.load("../config/g_band.yaml")
