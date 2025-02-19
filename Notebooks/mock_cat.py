@@ -6,6 +6,7 @@ from astropy.stats import sigma_clipped_stats
 from astropy.convolution import Gaussian2DKernel, convolve
 from photutils.detection import DAOStarFinder
 from astropy.nddata import Cutout2D
+from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 
 # === Step 1: Read the HDF5 file and extract the data ===
@@ -13,36 +14,27 @@ import matplotlib.pyplot as plt
 # File path (adjust as needed)
 hdf5_file = '/Users/wasi/Downloads/galaxy_galplane_l50_b0.hdf'
 
-# Open the file and read the relevant datasets.
 with h5py.File(hdf5_file, 'r') as f:
-    # Read the world coordinates (assumed to be stored as 'RA' and 'DEC')
     ra  = f['RA'][:]    # in degrees
     dec = f['DEC'][:]   # in degrees
 
     # Read CASTOR data in the UV and g bands.
-    # (The dataset names are assumed to be as in the documentation.)
     castor_uv_mag = f['CASTOR_uv_app'][:]
     castor_g_mag  = f['CASTOR_g_app'][:]
 
-# For the purpose of making an image, we’ll work with one band.
-# (You could repeat the process for the UV band or even create a multi–extension FITS file.)
 # Here we use the g band.
 mag = castor_g_mag
 
 # === Step 2: Convert magnitudes to fluxes ===
-# You need to adopt a zeropoint for your synthetic photometry. Here we assume a simple conversion.
-# (Flux here is an arbitrary “counts” scale; adjust the zeropoint as appropriate.)
+# (Flux here is an arbitrary “counts” scale)
 zp = 2 
 flux = 10**(-0.4 * (mag - zp))
 
 # === Step 3: Define a WCS and create an empty image grid ===
-
-# Determine the RA and DEC extent from the catalogue.
 ra_min, ra_max = np.min(ra), np.max(ra)
 dec_min, dec_max = np.min(dec), np.max(dec)
 
-# Define a pixel scale.
-# For example, 1 arcsec per pixel (~1/3600 degree).
+
 pixel_scale = 1.0 / 3600.0  # in degrees per pixel
 
 # Determine image dimensions (add a small margin)
@@ -56,7 +48,7 @@ w.wcs.crpix = [1, 1]                    # reference pixel (1-indexed for FITS)
 w.wcs.cdelt = [pixel_scale, pixel_scale]  # degrees per pixel
 w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
 
-# Create an empty image array.
+
 image = np.zeros((naxis2, naxis1))
 
 # === Step 4: Project the catalogue onto the image grid ===
@@ -79,14 +71,10 @@ print("  Max:", np.max(image))
 print("  Min:", np.min(image))
 print("  Nonzero count:", np.count_nonzero(image))
 
-
-# === (Optional) Convolve with a PSF kernel ===
-# Convolve with a Gaussian kernel to simulate a realistic point-spread function.
 psf_sigma = 0.5  # in pixels; adjust as needed
 kernel = Gaussian2DKernel(x_stddev=psf_sigma)
 image_conv = convolve(image, kernel)
 
-# For the star-finding step, we will use the convolved image.
 final_image = image_conv
 
 print("Final image stats after convolution:")
@@ -100,11 +88,25 @@ print("  Nonzero count:", np.count_nonzero(final_image))
 # Create a FITS PrimaryHDU with the image data and WCS header.
 hdu = fits.PrimaryHDU(data=final_image, header=w.to_header())
 fits_filename = 'projected_g_band.fits'
-# hdu.writeto(fits_filename, overwrite=True)
-# print("Saved projected image to:", fits_filename)
+hdu.writeto(fits_filename, overwrite=True)
+print("Saved projected image to:", fits_filename)
+
+# opem the fits file
+# hdu = fits.open('projected_g_band.fits')[0]
+# # view the shape of the image
+# print(hdu.data.shape)
+# # Display the image
+# plt.figure(figsize=(8, 8))
+# norm = LogNorm()
+# plt.imshow(hdu.data, origin='lower', cmap='gray', norm=LogNorm())
+# plt.colorbar(label='Flux')
+# plt.title('Projected Image of the Galactic Plane (g band)')
+# plt.xlabel('X Pixel')
+# plt.ylabel('Y Pixel')
+# plt.show()
 
 
-# === Step 6: Run DAOStarFinder to detect stars ===
+# # === Step 6: Run DAOStarFinder to detect stars ===
 
 # Estimate background statistics.
 mean_val, median_val, std_val = sigma_clipped_stats(final_image, sigma=3.0)
@@ -125,21 +127,24 @@ if sources is not None:
     from astropy.visualization import simple_norm
     norm = simple_norm(final_image, 'sqrt', percent=99.5)
     plt.figure(figsize=(8, 8))
-    plt.imshow(final_image, origin='lower', cmap='gray', norm=norm)
+    plt.imshow(final_image, origin='lower', cmap='jet', norm=norm)
     plt.scatter(sources['xcentroid'], sources['ycentroid'],
                 s=30, edgecolor='red', facecolor='none', label='Brightest Stars >> 4 AB mag')
     plt.xlabel('X Pixel')
     plt.ylabel('Y Pixel')
+    plt.colorbar(label='Flux')
     plt.xlim(0, 6000)
-    plt.title('Detected Stars')
+    plt.title('Detected Stars. CASTOR g band catalogue')
     plt.legend()
     plt.show()
     
     # Get a simple cutout of a section of the image around the detected stars. X-0:2000, and Y-2000:4000
     position = (1000, 3000)
-    size = (2000, 2000)
+    size = u.Quantity((2000, 2000), u.pixel)
     simple_cutout = Cutout2D(final_image, position=position, size=size, wcs=w)
-    plt.imshow(simple_cutout.data, origin='lower', cmap='gray', norm=norm)
+    hdu.data = simple_cutout.data
+    hdu.header.update(simple_cutout.wcs.to_header())
+    plt.imshow(simple_cutout.data, origin='lower', cmap='jet', norm=norm)
     # view shape of simple_cutout.data
     print(simple_cutout.data.shape)
     # Mark the detected stars on the cutout
@@ -151,9 +156,11 @@ if sources is not None:
     plt.xlabel('X Pixel')
     plt.ylabel('Y Pixel')
     plt.title('Faint Milky Way Stars in the Galactic Plane(g band)')
+    plt.legend()
+    plt.colorbar(label='Flux')
     plt.show()
     # save the image to a fits file
-    hdu=fits.PrimaryHDU(data=simple_cutout.data, header=simple_cutout.wcs.to_header())
+    hdul=fits.PrimaryHDU(data=simple_cutout.data, header=simple_cutout.wcs.to_header())
     hdul=fits.HDUList([hdu])
     hdul.writeto('simple_cut.fits', overwrite=True)
     print("Saved simple cutout image to:", 'simple_cut.fits')
@@ -234,28 +241,85 @@ if sources is not None:
 #     plt.ylabel('Y Pixel')
 #     plt.show()
 
-# # view and open simple_cutout.fits
+# view and open simple_cutout.fits
+
+hdu_n = fits.open('simple_cut.fits')[0]
+
+# display the image
+plt.figure(figsize=(8, 8))
+plt.imshow(hdu_n.data, origin='lower', cmap='jet', norm=norm)
+plt.colorbar(label='Flux')
+plt.title('2D Section of the Galactic Plane (g band)')
+plt.xlabel('X Pixel')
+plt.ylabel('Y Pixel')
+plt.show()
+
+# run DAO star finder on the simple cut. Find stars. Do exactly as above
+# Estimate background statistics.
+mean_val, median_val, std_val = sigma_clipped_stats(hdu_n.data, sigma=3.0)
+
+# Initialize DAOStarFinder.
+# fwhm: approximate full–width at half–maximum of stars in pixels.
+# threshold: detection threshold in sigma above the background.
+daofind = DAOStarFinder(fwhm=2.0, threshold=2*std_val)
+
+# Run the star finder on the background–subtracted image.
+sources_c = daofind(hdu_n.data - median_val)
+
+# Print out the detected sources.
+print("Detected sources:")
+print(sources)
+
+if sources is not None:
+    plt.figure(figsize=(8, 8))
+    plt.imshow(hdu_n.data, origin='lower', cmap='jet', norm=norm)
+    plt.scatter(sources_c['xcentroid'], sources_c['ycentroid'],
+                s=30, edgecolor='red', facecolor='none', label='Brightest Stars >> 4 AB mag')
+    plt.xlabel('X Pixel')
+    plt.ylabel('Y Pixel')
+    plt.colorbar(label='Flux')
+    plt.title('2D Cutout')
+    plt.legend()
+    plt.show()
+    
+# have the norm "built-in" / apply the stretch permanently to the image and save it to a new fits file
+stretched_image = hdu_n.data.copy()
+fits_filename = 'stretched_image.fits'
+clipped_data = np.clip(stretched_image, norm.vmin, norm.vmax)
+normalized_data = (clipped_data - norm.vmin) / (norm.vmax - norm.vmin)
+stretched_data = np.sqrt(normalized_data)
+hdu_stretched = fits.PrimaryHDU(data=stretched_data, header=hdu_n.header)
+hdu_stretched.writeto(fits_filename, overwrite=True)
+print("Saved stretched image to:", fits_filename)
 
 
-# import pyxel
-# config = pyxel.load("../config/g_band.yaml")
+hdu_check = fits.open('stretched_image.fits')[0]
 
-# exposure = config.exposure
-# detector = config.detector
-# pipeline = config.pipeline
+# display the image
+plt.figure(figsize=(8, 8))
+plt.imshow(hdu_check.data, origin='lower', cmap='jet')
+plt.colorbar(label='Flux')
+plt.title('Projected Image of the Galactic Plane (g band)')
+plt.xlabel('X Pixel')
+plt.ylabel('Y Pixel')
+plt.show()
+    
+import pyxel
+config = pyxel.load("../config/g_band.yaml")
 
-# result = pyxel.run_mode(
-#     mode=exposure,
-#     detector=detector,
-#     pipeline=pipeline,
-# )
-# pyxel.display_detector(detector)
+exposure = config.exposure
+detector = config.detector
+pipeline = config.pipeline
 
-# vals=result['photon'].to_numpy()
+result = pyxel.run_mode(
+    mode=exposure,
+    detector=detector,
+    pipeline=pipeline,
+)
+pyxel.display_detector(detector)
 
-# # investigate vals
-# print(vals)
-# print(vals.shape)
-# print(vals[0])
-# print(vals[1])
-# print(vals[2])
+vals=result['photon'].to_numpy()
+
+# investigate vals
+print(vals)
+print(vals.shape)
