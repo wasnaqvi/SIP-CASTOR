@@ -23,11 +23,11 @@ with h5py.File(hdf5_file, 'r') as f:
     castor_g_mag  = f['CASTOR_g_app'][:]
 
 # Here we use the g band.
-mag = castor_g_mag
+mag = castor_uv_mag
 
 # === Step 2: Convert magnitudes to fluxes ===
 # (Flux here is an arbitrary “counts” scale)
-zp = 2 
+zp = 25.0  # zero point magnitude
 flux = 10**(-0.4 * (mag - zp))
 
 # === Step 3: Define a WCS and create an empty image grid ===
@@ -87,7 +87,7 @@ print("  Nonzero count:", np.count_nonzero(final_image))
 
 # Create a FITS PrimaryHDU with the image data and WCS header.
 hdu = fits.PrimaryHDU(data=final_image, header=w.to_header())
-fits_filename = 'projected_g_band.fits'
+fits_filename = 'projected_uv_band.fits'
 hdu.writeto(fits_filename, overwrite=True)
 print("Saved projected image to:", fits_filename)
 
@@ -162,8 +162,8 @@ if sources is not None:
     # save the image to a fits file
     hdul=fits.PrimaryHDU(data=simple_cutout.data, header=simple_cutout.wcs.to_header())
     hdul=fits.HDUList([hdu])
-    hdul.writeto('simple_cut.fits', overwrite=True)
-    print("Saved simple cutout image to:", 'simple_cut.fits')
+    hdul.writeto('uv_cut.fits', overwrite=True)
+    print("Saved simple cutout image to:", 'uv_cut.fits')
      # Get the pixel coordinates from DAOStarFinder
     x_coords = sources['xcentroid']
     y_coords = sources['ycentroid']
@@ -213,7 +213,7 @@ if sources is not None:
     
     # --- Save the stars–only cutout image to a FITS file ---
     hdu = fits.PrimaryHDU(data=stars_image, header=cutout.wcs.to_header())
-    fits_filename = 'stars_cutout.fits'
+    fits_filename = 'uv_cutout.fits'
     hdu.writeto(fits_filename, overwrite=True)
     print("Saved stars cutout image to:", fits_filename)
     
@@ -243,7 +243,7 @@ if sources is not None:
 
 # view and open simple_cutout.fits
 
-hdu_n = fits.open('simple_cut.fits')[0]
+hdu_n = fits.open('uv_cut.fits')[0]
 
 # display the image
 plt.figure(figsize=(8, 8))
@@ -284,7 +284,7 @@ if sources is not None:
     
 # have the norm "built-in" / apply the stretch permanently to the image and save it to a new fits file
 stretched_image = hdu_n.data.copy()
-fits_filename = 'stretched_image.fits'
+fits_filename = 'uv_image.fits'
 clipped_data = np.clip(stretched_image, norm.vmin, norm.vmax)
 normalized_data = (clipped_data - norm.vmin) / (norm.vmax - norm.vmin)
 stretched_data = np.sqrt(normalized_data)
@@ -293,7 +293,7 @@ hdu_stretched.writeto(fits_filename, overwrite=True)
 print("Saved stretched image to:", fits_filename)
 
 
-hdu_check = fits.open('stretched_image.fits')[0]
+hdu_check = fits.open('uv_image.fits')[0]
 
 # display the image
 plt.figure(figsize=(8, 8))
@@ -304,22 +304,22 @@ plt.xlabel('X Pixel')
 plt.ylabel('Y Pixel')
 plt.show()
     
-import pyxel
-config = pyxel.load("../config/g_band.yaml")
+# import pyxel
+# config = pyxel.load("../config/g_band.yaml")
 
-exposure = config.exposure
-detector = config.detector
-pipeline = config.pipeline
+# exposure = config.exposure
+# detector = config.detector
+# pipeline = config.pipeline
 
-result = pyxel.run_mode(
-    mode=exposure,
-    detector=detector,
-    pipeline=pipeline,
-)
-pyxel.display_detector(detector)
+# result = pyxel.run_mode(
+#     mode=exposure,
+#     detector=detector,
+#     pipeline=pipeline,
+# )
+# pyxel.display_detector(detector)
 
-vals=result['photon'].to_numpy()
+# vals=result['photon'].to_numpy()
 
-# investigate vals
-print(vals)
-print(vals.shape)
+# # investigate vals
+# print(vals)
+# print(vals.shape)
